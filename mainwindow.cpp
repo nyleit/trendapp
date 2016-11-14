@@ -25,10 +25,12 @@ MainWindow::MainWindow(QWidget *parent) :
     mChart = new QtCharts::QChart();
 
     mXaxis = new QtCharts::QDateTimeAxis();
+    mXaxis->setTitleFont(QFont("", 12, QFont::Bold));
     mXaxis->setLabelsAngle(20);
     mChart->addAxis(mXaxis, Qt::AlignBottom);
 
     mYaxis = new QtCharts::QValueAxis();
+    mYaxis->setTitleFont(QFont("", 12, QFont::Bold));
     mYaxis->setLabelFormat("%i");
     mYaxis->setTitleText("Values");
 
@@ -70,6 +72,7 @@ void MainWindow::setupActions()
         if (dialog.exec() != QDialog::Accepted) {
             return;
         }
+        printer.setOrientation(QPrinter::Landscape);
         QPainter painter;
         painter.begin(&printer);
 
@@ -222,6 +225,9 @@ void MainWindow::readCSVFile(const QString &fileName)
             minimum = (mSeriesMin[seriesName] < minimum)? mSeriesMin[seriesName] : minimum;
             maximum = (mSeriesMax[seriesName] > maximum)? mSeriesMax[seriesName] : maximum;
         }
+        QFileInfo fInfo(fileName);
+        mChart->setTitleFont(QFont("Times New Roman", 14));
+        mChart->setTitle("<b>" + fInfo.fileName()+ "</b>");
         mYaxis->setRange(minimum, maximum);
         mXaxis->setTickCount(10);
         mXaxis->setGridLineVisible();
