@@ -124,14 +124,11 @@ void MainWindow::setupActions()
         QPainter painter;
         painter.begin(&printer);
 
-        int pagewidth = printer.pageRect().width();
-        int widwidth = ui->chartView->width();
-        qDebug() << pagewidth << " " << widwidth;
-        double xscale = printer.pageRect().width()/double(ui->chartView->width());
-        double yscale = printer.pageRect().height()/double(ui->chartView->height());
-        double scale = qMin(xscale, yscale);
+        //double xscale = printer.pageRect().width()/double(ui->chartView->width());
+        //double yscale = printer.pageRect().height()/double(ui->chartView->height());
+        //double scale = qMin(xscale, yscale);
 
-        qDebug() << widwidth * scale;
+
         //painter.translate(printer.paperRect().x() + printer.pageRect().width()/2,
           //                printer.paperRect().y() + printer.pageRect().height()/2);
         //painter.scale(scale, scale);
