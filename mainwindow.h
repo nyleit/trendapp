@@ -45,8 +45,10 @@ private:
     QMenu *mLinesMenu;
     QMenu *mPrintMenu;
 
+
     QAction *mOpenFile;
     QAction *mPrintAction;
+    QAction *mSaveAction;
     Chart *mChart;
     QtCharts::QDateTimeAxis *mXaxis;
     QtCharts::QValueAxis *mYaxis;

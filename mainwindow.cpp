@@ -15,6 +15,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QDebug>
+#include <QPdfWriter>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -124,23 +125,34 @@ void MainWindow::setupActions()
         printer.setFullPage(true);
         QPainter painter;
         painter.begin(&printer);
+        qDebug() << printer.pageRect();
 
-        //double xscale = printer.pageRect().width()/double(ui->chartView->width());
-        //double yscale = printer.pageRect().height()/double(ui->chartView->height());
-        //double scale = qMin(xscale, yscale);
-
-
-        //painter.translate(printer.paperRect().x() + printer.pageRect().width()/2,
-          //                printer.paperRect().y() + printer.pageRect().height()/2);
-        //painter.scale(scale, scale);
-        //painter.translate(-ui->chartView->width()/2, -ui->chartView->height()/2);
         QRect previous = ui->chartView->rect();
         ui->chartView->setGeometry(printer.pageRect());
         ui->chartView->render(&painter, printer.pageRect(), ui->chartView->rect(),Qt::KeepAspectRatioByExpanding);
         //painter.drawRect(printer.paperRect());
         ui->chartView->setGeometry(previous);
+    });
+
+    mSaveAction = new QAction("Save as PDF", this);
+    connect(mSaveAction, &QAction::triggered, [this](){
+        QString fileName = QFileDialog::getSaveFileName(this, "Save as PDF", "",tr("PDF Files (*.pdf)") );
+        if (!fileName.isEmpty())
+        {
+            QPdfWriter writer(fileName);
+            writer.setPageSize(QPagedPaintDevice::Letter);
+            writer.setPageOrientation(QPageLayout::Landscape);
+            QPainter painter(&writer);
 
 
+
+            QRect previous = ui->chartView->rect();
+            ui->chartView->setGeometry(QRect(0,0, 1056, 816));
+            ui->chartView->render(&painter);
+            ui->chartView->setGeometry(previous);
+            painter.end();
+            QMessageBox::information(this,"Saved ","Chart has been written to the pdf file!");
+        }
     });
 
 }
@@ -149,6 +161,7 @@ void MainWindow::setupMenus()
 {
     mFileMenu = new QMenu("File", this);
     mFileMenu->addAction(mOpenFile);
+    mFileMenu->addAction(mSaveAction);
 
     mDataMenu = new QMenu("Data", this);
     mLinesMenu = new QMenu("Lines", this);
