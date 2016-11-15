@@ -10,6 +10,11 @@
 #include <QValueAxis>
 #include <QPrinter>
 #include <QPrintDialog>
+#include <QVBoxLayout>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QToolButton>
+#include <QDebug>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -21,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
+    ui->frame->hide();
     mChart = new QtCharts::QChart();
 
     mXaxis = new QtCharts::QDateTimeAxis();
@@ -33,8 +38,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mYaxis->setTitleFont(QFont("", 12, QFont::Bold));
     mYaxis->setLabelFormat("%i");
     mYaxis->setTitleText("Values");
-
     mChart->addAxis(mYaxis, Qt::AlignLeft);
+
 
     ui->chartView->setChart(mChart);
     ui->chartView->setRenderHint(QPainter::Antialiasing);
@@ -42,6 +47,14 @@ MainWindow::MainWindow(QWidget *parent) :
     setupActions();
     setupMenus();
 
+    connect(ui->minDate, &QDateTimeEdit::dateTimeChanged, [this](){
+        QDateTime minDate = ui->minDate->dateTime();
+        ui->maxDate->setMinimumDateTime(minDate);
+    });
+    connect(ui->maxDate, &QDateTimeEdit::dateTimeChanged, [this](){
+        QDateTime maxDate = ui->maxDate->dateTime();
+        ui->minDate->setMaximumDateTime(maxDate);
+    });
 
 
 }
@@ -49,6 +62,40 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::selectDataDialog(QWidget *parent, QList<QAction *> actions)
+{
+    QDialog *dialog  = new QDialog(parent);
+    QVBoxLayout *layout = new QVBoxLayout(dialog);
+    QLabel *lbl_select = new QLabel("Select Data:", dialog);
+    QFrame *frame = new QFrame(dialog);
+    QVBoxLayout *frameLayout = new QVBoxLayout(frame);
+    layout->addWidget(lbl_select);
+    layout->addWidget(frame);
+
+    QHBoxLayout *btnLayout = new  QHBoxLayout(dialog);
+    QPushButton *okBtn = new QPushButton("OK");
+    connect (okBtn, &QPushButton::clicked, [dialog](){
+        dialog->close();
+    });
+    QSpacerItem *spacer = new QSpacerItem(50,30, QSizePolicy::Expanding);
+    btnLayout->addSpacerItem(spacer);
+    btnLayout->addWidget(okBtn);
+
+    layout->addLayout(btnLayout);
+    foreach (QAction *action, actions)
+    {
+        QCheckBox *chkBox = new QCheckBox(action->text(), dialog);
+        chkBox->setChecked(true);
+        connect(chkBox, &QCheckBox::toggled, [action](bool clicked){
+            action->toggle();
+        });
+        frameLayout->addWidget(chkBox);
+    }
+
+    dialog->exec();
+
 }
 
 void MainWindow::setupActions()
@@ -73,20 +120,27 @@ void MainWindow::setupActions()
             return;
         }
         printer.setOrientation(QPrinter::Landscape);
+        printer.setFullPage(true);
         QPainter painter;
         painter.begin(&printer);
 
-
+        int pagewidth = printer.pageRect().width();
+        int widwidth = ui->chartView->width();
+        qDebug() << pagewidth << " " << widwidth;
         double xscale = printer.pageRect().width()/double(ui->chartView->width());
         double yscale = printer.pageRect().height()/double(ui->chartView->height());
         double scale = qMin(xscale, yscale);
-        painter.translate(printer.paperRect().x() + printer.pageRect().width()/2,
-                          printer.paperRect().y() + printer.pageRect().height()/2);
-        painter.scale(scale, scale);
-        painter.translate(-ui->chartView->width()/2, -ui->chartView->height()/2);
+
+        qDebug() << widwidth * scale;
+        //painter.translate(printer.paperRect().x() + printer.pageRect().width()/2,
+          //                printer.paperRect().y() + printer.pageRect().height()/2);
+        //painter.scale(scale, scale);
+        //painter.translate(-ui->chartView->width()/2, -ui->chartView->height()/2);
 
 
         ui->chartView->render(&painter);
+        painter.drawRect(printer.pageRect());
+        //painter.drawRect(printer.paperRect());
     });
 
 }
@@ -127,7 +181,7 @@ void MainWindow::readCSVFile(const QString &fileName)
             }
         }
         QList<QDateTime> timeStamps;
-
+        QDateTime minDate, maxDate;
         while(!file.atEnd())
         {
             QString line = file.readLine();
@@ -149,6 +203,17 @@ void MainWindow::readCSVFile(const QString &fileName)
             }
 
         }
+        if (!timeStamps.isEmpty())
+        {
+            maxDate = timeStamps[0];
+            minDate = timeStamps[0];
+        }
+        foreach (QDateTime focusDate, timeStamps)
+        {
+            minDate = (focusDate < minDate)? focusDate : minDate;
+            maxDate = (focusDate > maxDate)? focusDate : maxDate;
+        }
+
 
         mSeriesMax.clear();
         mSeriesMin.clear();
@@ -170,6 +235,7 @@ void MainWindow::readCSVFile(const QString &fileName)
         mChart->removeAllSeries();
         mLinesMenu->clear();
         mShownSeries.clear();
+
         for (int i=0; i<dataSeries.size(); i++)
         {
             QString seriesName = dataSeries[i];
@@ -188,32 +254,43 @@ void MainWindow::readCSVFile(const QString &fileName)
             showSeries->setCheckable(true);
             showSeries->setChecked(true);
             mShownSeries.insert(seriesName);
-            connect(showSeries, &QAction::triggered, [this, series, dataValues](bool checked){
+            connect(showSeries, &QAction::toggled, [this, series, dataValues](bool checked){
+                float maximum = 0;
+                float minimum = 65000;
                 QString sName = series->name();
                 if (checked)
                 {
-                    mChart->addSeries(series);
                     mShownSeries.insert(sName);
+
+                    foreach (QString seriesName, mShownSeries)
+                    {
+
+                        minimum = (mSeriesMin[seriesName] < minimum)? mSeriesMin[seriesName] : minimum;
+                        maximum = (mSeriesMax[seriesName] > maximum)? mSeriesMax[seriesName] : maximum;
+                    }
+                    mYaxis->setRange(minimum, maximum + 10);
+                    mChart->addSeries(series);
+                    series->attachAxis(mXaxis);
+                    series->attachAxis(mYaxis);
+
                 }
                 else
                 {
-                    mChart->removeSeries(series);
                     mShownSeries.remove(sName);
-                }
-                float maximum = 0;
-                float minimum = 65000;
-                foreach (QString seriesName, mShownSeries)
-                {
-                    if (seriesName == sName)
-                        continue;
-                    minimum = (mSeriesMin[seriesName] < minimum)? mSeriesMin[seriesName] : minimum;
-                    maximum = (mSeriesMax[seriesName] > maximum)? mSeriesMax[seriesName] : maximum;
+                    foreach (QString seriesName, mShownSeries)
+                    {
+;
+                        minimum = (mSeriesMin[seriesName] < minimum)? mSeriesMin[seriesName] : minimum;
+                        maximum = (mSeriesMax[seriesName] > maximum)? mSeriesMax[seriesName] : maximum;
+                    }
+                    mYaxis->setRange(minimum, maximum + 10);
+                    mChart->removeSeries(series);
+
                 }
 
-                mYaxis->setRange(minimum, maximum);
+
 
             });
-
             mLinesMenu->addAction(showSeries);
         }
         ui->chartView->setChart(mChart);
@@ -225,13 +302,40 @@ void MainWindow::readCSVFile(const QString &fileName)
             minimum = (mSeriesMin[seriesName] < minimum)? mSeriesMin[seriesName] : minimum;
             maximum = (mSeriesMax[seriesName] > maximum)? mSeriesMax[seriesName] : maximum;
         }
+
+
         QFileInfo fInfo(fileName);
         mChart->setTitleFont(QFont("Times New Roman", 14));
-        mChart->setTitle("<b>" + fInfo.fileName()+ "</b>");
-        mYaxis->setRange(minimum, maximum);
+        mChart->setTitle("<b>" + fInfo.baseName()+ "</b>");
+        mYaxis->setRange(minimum, maximum + 10);
         mXaxis->setTickCount(10);
         mXaxis->setGridLineVisible();
         mXaxis->setFormat("yy-MM-d hh:mm");
         mXaxis->setTitleText("Date");
+        ui->maxDate->setMinimumDateTime(minDate);
+        ui->maxDate->setMaximumDateTime(maxDate);
+        ui->maxDate->setDateTime(maxDate);
+
+        ui->minDate->setMinimumDateTime(minDate);
+        ui->minDate->setMaximumDateTime(maxDate);
+        ui->minDate->setDateTime(minDate);
+
+        ui->frame->setVisible(true);
+        selectDataDialog(this, mLinesMenu->actions());
+    }
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    QDateTime minDate = ui->minDate->dateTime();
+    QDateTime maxDate = ui->maxDate->dateTime();
+
+    if (minDate < maxDate)
+    {
+        mXaxis->setRange(minDate, maxDate);
+    }
+    else
+    {
+        QMessageBox::warning(this, "Invalid Range", "Invalid range please check");
     }
 }
