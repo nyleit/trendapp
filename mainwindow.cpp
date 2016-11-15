@@ -18,6 +18,7 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "chart.h"
 
 
 
@@ -27,7 +28,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->frame->hide();
-    mChart = new QtCharts::QChart();
+    mChart = new Chart();
 
     mXaxis = new QtCharts::QDateTimeAxis();
     mXaxis->setTitleFont(QFont("", 12, QFont::Bold));
@@ -133,11 +134,13 @@ void MainWindow::setupActions()
           //                printer.paperRect().y() + printer.pageRect().height()/2);
         //painter.scale(scale, scale);
         //painter.translate(-ui->chartView->width()/2, -ui->chartView->height()/2);
-
-
-        ui->chartView->render(&painter, printer.pageRect(), ui->chartView->rect(),Qt::IgnoreAspectRatio);
-        painter.drawRect(printer.pageRect());
+        QRect previous = ui->chartView->rect();
+        ui->chartView->setGeometry(printer.pageRect());
+        ui->chartView->render(&painter, printer.pageRect(), ui->chartView->rect(),Qt::KeepAspectRatioByExpanding);
         //painter.drawRect(printer.paperRect());
+        ui->chartView->setGeometry(previous);
+
+
     });
 
 }

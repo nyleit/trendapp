@@ -14,11 +14,12 @@ class QAction;
 class QMenu;
 
 namespace QtCharts{
-class QChart;
+
 class QDateTimeAxis;
 class QValueAxis;
 
 }
+class Chart;
 
 class MainWindow : public QMainWindow
 {
@@ -46,7 +47,7 @@ private:
 
     QAction *mOpenFile;
     QAction *mPrintAction;
-    QtCharts::QChart *mChart;
+    Chart *mChart;
     QtCharts::QDateTimeAxis *mXaxis;
     QtCharts::QValueAxis *mYaxis;
     QSet<QString> mShownSeries;
