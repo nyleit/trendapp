@@ -135,7 +135,7 @@ void MainWindow::setupActions()
         //painter.translate(-ui->chartView->width()/2, -ui->chartView->height()/2);
 
 
-        ui->chartView->render(&painter);
+        ui->chartView->render(&painter, printer.pageRect(), ui->chartView->rect(),Qt::IgnoreAspectRatio);
         painter.drawRect(printer.pageRect());
         //painter.drawRect(printer.paperRect());
     });
